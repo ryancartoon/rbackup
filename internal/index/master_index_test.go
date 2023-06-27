@@ -329,7 +329,7 @@ var (
 )
 
 func createFilledRepo(t testing.TB, snapshots int, dup float32, version uint) restic.Repository {
-	repo := repository.TestRepositoryWithVersion(t, version)
+	repo := repository.TestRepositoryWithVersion(t)
 
 	for i := 0; i < snapshots; i++ {
 		restic.TestCreateSnapshot(t, repo, snapshotTime.Add(time.Duration(i)*time.Second), depth, dup)

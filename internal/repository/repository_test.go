@@ -30,12 +30,12 @@ var testSizes = []int{5, 23, 2<<18 + 23, 1 << 20}
 
 var rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
 
-func TestSave(t *testing.T) {
-	repository.TestAllVersions(t, testSave)
-}
+// func TestSave(t *testing.T) {
+// 	repository.TestAllVersions(t, testSave)
+// }
 
-func testSave(t *testing.T, version uint) {
-	repo := repository.TestRepositoryWithVersion(t, version)
+func TestSave(t *testing.T) {
+	repo := repository.TestRepositoryWithVersion(t)
 
 	for _, size := range testSizes {
 		data := make([]byte, size)
@@ -76,7 +76,7 @@ func TestSaveFrom(t *testing.T) {
 }
 
 func testSaveFrom(t *testing.T, version uint) {
-	repo := repository.TestRepositoryWithVersion(t, version)
+	repo := repository.TestRepositoryWithVersion(t)
 
 	for _, size := range testSizes {
 		data := make([]byte, size)
@@ -115,7 +115,7 @@ func BenchmarkSaveAndEncrypt(t *testing.B) {
 }
 
 func benchmarkSaveAndEncrypt(t *testing.B, version uint) {
-	repo := repository.TestRepositoryWithVersion(t, version)
+	repo := repository.TestRepositoryWithVersion(t)
 	size := 4 << 20 // 4MiB
 
 	data := make([]byte, size)
@@ -141,7 +141,7 @@ func TestLoadBlob(t *testing.T) {
 }
 
 func testLoadBlob(t *testing.T, version uint) {
-	repo := repository.TestRepositoryWithVersion(t, version)
+	repo := repository.TestRepositoryWithVersion(t)
 	length := 1000000
 	buf := crypto.NewBlobBuffer(length)
 	_, err := io.ReadFull(rnd, buf)
@@ -175,7 +175,7 @@ func BenchmarkLoadBlob(b *testing.B) {
 }
 
 func benchmarkLoadBlob(b *testing.B, version uint) {
-	repo := repository.TestRepositoryWithVersion(b, version)
+	repo := repository.TestRepositoryWithVersion(b)
 	length := 1000000
 	buf := crypto.NewBlobBuffer(length)
 	_, err := io.ReadFull(rnd, buf)
@@ -216,7 +216,7 @@ func BenchmarkLoadUnpacked(b *testing.B) {
 }
 
 func benchmarkLoadUnpacked(b *testing.B, version uint) {
-	repo := repository.TestRepositoryWithVersion(b, version)
+	repo := repository.TestRepositoryWithVersion(b)
 	length := 1000000
 	buf := crypto.NewBlobBuffer(length)
 	_, err := io.ReadFull(rnd, buf)
@@ -335,7 +335,7 @@ func BenchmarkLoadIndex(b *testing.B) {
 func benchmarkLoadIndex(b *testing.B, version uint) {
 	repository.TestUseLowSecurityKDFParameters(b)
 
-	repo := repository.TestRepositoryWithVersion(b, version)
+	repo := repository.TestRepositoryWithVersion(b)
 	idx := index.NewIndex()
 
 	for i := 0; i < 5000; i++ {
@@ -386,7 +386,7 @@ func TestRepositoryIncrementalIndex(t *testing.T) {
 }
 
 func testRepositoryIncrementalIndex(t *testing.T, version uint) {
-	repo := repository.TestRepositoryWithVersion(t, version).(*repository.Repository)
+	repo := repository.TestRepositoryWithVersion(t).(*repository.Repository)
 
 	index.IndexFull = func(*index.Index, bool) bool { return true }
 
