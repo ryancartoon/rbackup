@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/klauspost/compress/zstd"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -49,9 +50,9 @@ func TestSave(t *testing.T) {
 
 		// save
 		sid, _, _, err := repo.SaveBlob(context.TODO(), restic.DataBlob, data, restic.ID{}, false)
-		rtest.OK(t, err)
+		assert.NoError(t, err)
 
-		rtest.Equals(t, id, sid)
+		assert.Equal(t, id, sid)
 
 		rtest.OK(t, repo.Flush(context.Background()))
 		// rtest.OK(t, repo.SaveIndex())
@@ -72,10 +73,6 @@ func TestSave(t *testing.T) {
 }
 
 func TestSaveFrom(t *testing.T) {
-	repository.TestAllVersions(t, testSaveFrom)
-}
-
-func testSaveFrom(t *testing.T, version uint) {
 	repo := repository.TestRepositoryWithVersion(t)
 
 	for _, size := range testSizes {
