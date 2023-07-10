@@ -2,96 +2,163 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"rbackup/internal/backend/location"
 	"rbackup/internal/errors"
+	"rbackup/internal/options"
 	"rbackup/internal/repository"
-
-	"github.com/restic/chunker"
 )
 
 func main() {
 	ctx := context.Background()
-	runIint(ctx)
+	runInit(ctx)
 }
 
-func runInit(ctx context.Context, args []string) error {
-	if len(args) > 0 {
-		return errors.Fatal("the init command expects no arguments, only options - please see `restic help init` for usage and flags")
-	}
+func runInit(ctx context.Context) error {
 
-	chunkerPolynomial, err := maybeReadChunkerPolynomial(ctx, opts, gopts)
-	if err != nil {
-		return err
-	}
-
-	repo, err := ReadRepo(gopts)
-	if err != nil {
-		return err
-	}
-
+	repo := "/tmp/rbackup-repo-tmp"
 	password := "redhat"
 
-	be, err := create(ctx, repo, gopts.extended)
+	be, err := create(ctx, repo, options.Options{})
 	if err != nil {
-		return errors.Fatalf("create repository at %s failed: %v\n", location.StripPassword(gopts.Repo), err)
+		return errors.Fatalf("create repository failed: %v\n", err)
 	}
 
+	compressionOff := repository.CompressionMode(1)
+
 	s, err := repository.New(be, repository.Options{
-		Compression: gopts.Compression,
-		PackSize:    gopts.PackSize * 1024 * 1024,
+		Compression: compressionOff,
+		PackSize:    1 * 1024 * 1024,
 	})
 	if err != nil {
 		return errors.Fatal(err.Error())
 	}
+	var version = uint(1)
 
-	err = s.Init(ctx, version, password, chunkerPolynomial)
+	err = s.Init(ctx, version, password, nil)
 	if err != nil {
-		return errors.Fatalf("create key in repository at %s failed: %v\n", location.StripPassword(gopts.Repo), err)
-	}
-
-	if !gopts.JSON {
-		Verbosef("created restic repository %v at %s", s.Config().ID[:10], location.StripPassword(gopts.Repo))
-		if opts.CopyChunkerParameters && chunkerPolynomial != nil {
-			Verbosef(" with chunker parameters copied from secondary repository\n")
-		} else {
-			Verbosef("\n")
-		}
-		Verbosef("\n")
-		Verbosef("Please note that knowledge of your password is required to access\n")
-		Verbosef("the repository. Losing your password means that your data is\n")
-		Verbosef("irrecoverably lost.\n")
-
-	} else {
-		status := initSuccess{
-			MessageType: "initialized",
-			ID:          s.Config().ID,
-			Repository:  location.StripPassword(gopts.Repo),
-		}
-		return json.NewEncoder(globalOptions.stdout).Encode(status)
+		return errors.Fatalf("create key in repository failed: %v\n", err)
 	}
 
 	return nil
 }
 
-func maybeReadChunkerPolynomial(ctx context.Context, opts InitOptions, gopts GlobalOptions) (*chunker.Pol, error) {
-	if opts.CopyChunkerParameters {
-		otherGopts, _, err := fillSecondaryGlobalOpts(opts.secondaryRepoOptions, gopts, "secondary")
-		if err != nil {
-			return nil, err
-		}
+// OpenRepository reads the password and opens the repository.
+// func OpenRepository(ctx context.Context, repo string) (*repository.Repository, error) {
+// 	be, err := open(ctx, repo, opts, opts.extended)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-		otherRepo, err := OpenRepository(ctx, otherGopts)
-		if err != nil {
-			return nil, err
-		}
+// 	report := func(msg string, err error, d time.Duration) {
+// 		fmt.Printf("%v returned error, retrying after %v: %v\n", msg, d, err)
+// 	}
+// 	success := func(msg string, retries int) {
+// 		fmt.Printf("%v operation successful after %d retries\n", msg, retries)
+// 	}
+// 	be = retry.New(be, 10, report, success)
 
-		pol := otherRepo.Config().ChunkerPolynomial
-		return &pol, nil
-	}
+// 	// wrap backend if a test specified a hook
+// 	if opts.backendTestHook != nil {
+// 		be, err = opts.backendTestHook(be)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 	}
 
-	if opts.Repo != "" || opts.RepositoryFile != "" || opts.LegacyRepo != "" || opts.LegacyRepositoryFile != "" {
-		return nil, errors.Fatal("Secondary repository must only be specified when copying the chunker parameters")
-	}
-	return nil, nil
-}
+// 	s, err := repository.New(be, repository.Options{
+// 		Compression: opts.Compression,
+// 		PackSize:    opts.PackSize * 1024 * 1024,
+// 	})
+// 	if err != nil {
+// 		return nil, errors.Fatal(err.Error())
+// 	}
+
+// 	passwordTriesLeft := 1
+// 	if stdinIsTerminal() && opts.password == "" {
+// 		passwordTriesLeft = 3
+// 	}
+
+// 	for ; passwordTriesLeft > 0; passwordTriesLeft-- {
+// 		opts.password, err = ReadPassword(opts, "enter password for repository: ")
+// 		if err != nil && passwordTriesLeft > 1 {
+// 			opts.password = ""
+// 			fmt.Printf("%s. Try again\n", err)
+// 		}
+// 		if err != nil {
+// 			continue
+// 		}
+
+// 		err = s.SearchKey(ctx, opts.password, maxKeys, opts.KeyHint)
+// 		if err != nil && passwordTriesLeft > 1 {
+// 			opts.password = ""
+// 			fmt.Fprintf(os.Stderr, "%s. Try again\n", err)
+// 		}
+// 	}
+// 	if err != nil {
+// 		if errors.IsFatal(err) {
+// 			return nil, err
+// 		}
+// 		return nil, errors.Fatalf("%s", err)
+// 	}
+
+// 	if stdoutIsTerminal() && !opts.JSON {
+// 		id := s.Config().ID
+// 		if len(id) > 8 {
+// 			id = id[:8]
+// 		}
+// 		if !opts.JSON {
+// 			extra := ""
+// 			if s.Config().Version >= 2 {
+// 				extra = ", compression level " + opts.Compression.String()
+// 			}
+// 			Verbosef("repository %v opened (version %v%s)\n", id, s.Config().Version, extra)
+// 		}
+// 	}
+
+// 	if opts.NoCache {
+// 		return s, nil
+// 	}
+
+// 	c, err := cache.New(s.Config().ID, opts.CacheDir)
+// 	if err != nil {
+// 		Warnf("unable to open cache: %v\n", err)
+// 		return s, nil
+// 	}
+
+// 	if c.Created && !opts.JSON && stdoutIsTerminal() {
+// 		Verbosef("created new cache in %v\n", c.Base)
+// 	}
+
+// 	// start using the cache
+// 	s.UseCache(c)
+
+// 	oldCacheDirs, err := cache.Old(c.Base)
+// 	if err != nil {
+// 		Warnf("unable to find old cache directories: %v", err)
+// 	}
+
+// 	// nothing more to do if no old cache dirs could be found
+// 	if len(oldCacheDirs) == 0 {
+// 		return s, nil
+// 	}
+
+// 	// cleanup old cache dirs if instructed to do so
+// 	if opts.CleanupCache {
+// 		if stdoutIsTerminal() && !opts.JSON {
+// 			Verbosef("removing %d old cache dirs from %v\n", len(oldCacheDirs), c.Base)
+// 		}
+// 		for _, item := range oldCacheDirs {
+// 			dir := filepath.Join(c.Base, item.Name())
+// 			err = fs.RemoveAll(dir)
+// 			if err != nil {
+// 				Warnf("unable to remove %v: %v\n", dir, err)
+// 			}
+// 		}
+// 	} else {
+// 		if stdoutIsTerminal() {
+// 			Verbosef("found %d old cache directories in %v, run `restic cache --cleanup` to remove them\n",
+// 				len(oldCacheDirs), c.Base)
+// 		}
+// 	}
+
+// 	return s, nil
+// }
