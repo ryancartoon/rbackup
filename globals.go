@@ -44,7 +44,6 @@ func parseConfig(loc location.Location) (interface{}, error) {
 	switch loc.Scheme {
 	case "local":
 		cfg := loc.Config.(local.Config)
-		debug.Log("opening local repository at %#v", cfg)
 		return cfg, nil
 	}
 

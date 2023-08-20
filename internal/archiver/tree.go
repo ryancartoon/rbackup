@@ -270,31 +270,13 @@ func unrollTree(f fs.FS, t *Tree) error {
 }
 
 // NewTree creates a Tree from the target files/directories.
-func NewTree(fs fs.FS, targets []string) (*Tree, error) {
-	debug.Log("targets: %v", targets)
+func NewTree(fs fs.FS, target string) (*Tree, error) {
+	debug.Log("targets: %v", target)
 	tree := &Tree{}
-	seen := make(map[string]struct{})
-	for _, target := range targets {
-		target = fs.Clean(target)
-
-		// skip duplicate targets
-		if _, ok := seen[target]; ok {
-			continue
-		}
-		seen[target] = struct{}{}
-
-		err := tree.Add(fs, target)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	debug.Log("before unroll:\n%v", tree)
-	err := unrollTree(fs, tree)
+	err := tree.Add(fs, target)
 	if err != nil {
 		return nil, err
 	}
-
 	debug.Log("result:\n%v", tree)
 	return tree, nil
 }

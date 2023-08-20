@@ -728,13 +728,13 @@ func (arch *Archiver) stopWorkers() {
 }
 
 // Snapshot saves several targets and returns a snapshot.
-func (arch *Archiver) Snapshot(ctx context.Context, targets []string, opts SnapshotOptions) (*restic.Snapshot, restic.ID, error) {
-	cleanTargets, err := resolveRelativeTargets(arch.FS, targets)
-	if err != nil {
-		return nil, restic.ID{}, err
-	}
+func (arch *Archiver) Snapshot(ctx context.Context, target string, opts SnapshotOptions) (*restic.Snapshot, restic.ID, error) {
+	// cleanTargets, err := resolveRelativeTargets(arch.FS, targets)
+	// if err != nil {
+	// 	return nil, restic.ID{}, err
+	// }
 
-	atree, err := NewTree(arch.FS, cleanTargets)
+	atree, err := NewTree(arch.FS, target)
 	if err != nil {
 		return nil, restic.ID{}, err
 	}

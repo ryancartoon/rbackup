@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"rbackup/internal/archiver"
 	"rbackup/internal/backend/local"
 	"rbackup/internal/backend/location"
 	"rbackup/internal/backend/logger"
@@ -10,10 +12,15 @@ import (
 	"rbackup/internal/backend/sema"
 	"rbackup/internal/debug"
 	"rbackup/internal/errors"
+	"rbackup/internal/fs"
 	"rbackup/internal/repository"
 	"rbackup/internal/restic"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
+
+var REPO = "/tmp/rbackup-repo-tmp"
 
 func main() {
 	ctx := context.Background()
@@ -22,10 +29,9 @@ func main() {
 
 func runInit(ctx context.Context) error {
 
-	repo := "/tmp/rbackup-repo-tmp"
 	password := "redhat"
 
-	be, err := create(ctx, repo)
+	be, err := create(ctx, REPO)
 	if err != nil {
 		return errors.Fatalf("create repository failed: %v\n", err)
 	}
@@ -116,4 +122,56 @@ func open(ctx context.Context, s string) (restic.Backend, error) {
 	}
 
 	return be, nil
+}
+
+func runBackup(ctx context.Context, target string) error {
+
+	timeStamp := time.Now()
+	hostname := "localhost"
+	selectByNameFilter := func(item string) bool {
+		return true
+	}
+
+	selectFilter := func(item string, fi os.FileInfo) bool {
+		return true
+	}
+
+	repo, err := OpenRepository(ctx, REPO)
+	if err != nil {
+		return err
+	}
+
+	var targetFS fs.FS = fs.Local{}
+	var concurrency uint = 1
+
+	wg, wgCtx := errgroup.WithContext(ctx)
+	_, cancel := context.WithCancel(wgCtx)
+	defer cancel()
+
+	arch := archiver.New(repo, targetFS, archiver.Options{ReadConcurrency: concurrency})
+	arch.SelectByName = selectByNameFilter
+	arch.Select = selectFilter
+
+	snapshotOpts := archiver.SnapshotOptions{
+		Time:     timeStamp,
+		Hostname: hostname,
+	}
+
+	_, id, err := arch.Snapshot(ctx, []string{target}, snapshotOpts)
+
+	fmt.Printf("snapshot %v saved\n", id.Str())
+
+	// cleanly shutdown all running goroutines
+	cancel()
+
+	// let's see if one returned an error
+	werr := wg.Wait()
+
+	// return original error
+	if err != nil {
+		return errors.Fatalf("unable to save snapshot: %v", err)
+	}
+
+	// Report finished execution
+	return werr
 }
