@@ -25,6 +25,7 @@ var REPO = "/tmp/rbackup-repo-tmp"
 func main() {
 	ctx := context.Background()
 	runInit(ctx)
+	runBackup(ctx, "/tmp/source")
 }
 
 func runInit(ctx context.Context) error {
