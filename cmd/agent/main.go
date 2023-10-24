@@ -57,7 +57,7 @@ func runInit(ctx context.Context) error {
 }
 
 // OpenRepository reads the password and opens the repository.
-func OpenRepository(ctx context.Context, repo string) (*repository.Repository, error) {
+func OpenRepository(ctx context.Context, repo string, password string) (*repository.Repository, error) {
 	be, err := open(ctx, repo)
 	if err != nil {
 		return nil, err
@@ -78,6 +78,13 @@ func OpenRepository(ctx context.Context, repo string) (*repository.Repository, e
 	})
 	if err != nil {
 		return nil, errors.Fatal(err.Error())
+	}
+
+	const maxKeys = 20
+	keyHint := ""
+	err = s.SearchKey(ctx, password, maxKeys, keyHint)
+	if err != nil {
+		return nil, err
 	}
 
 	return s, nil
@@ -127,6 +134,7 @@ func open(ctx context.Context, s string) (restic.Backend, error) {
 
 func runBackup(ctx context.Context, target string) error {
 
+	password := "redhat"
 	timeStamp := time.Now()
 	hostname := "localhost"
 	selectByNameFilter := func(item string) bool {
@@ -137,7 +145,7 @@ func runBackup(ctx context.Context, target string) error {
 		return true
 	}
 
-	repo, err := OpenRepository(ctx, REPO)
+	repo, err := OpenRepository(ctx, REPO, password)
 	if err != nil {
 		return err
 	}
